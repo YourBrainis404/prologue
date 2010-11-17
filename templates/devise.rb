@@ -42,7 +42,7 @@ run 'rm app/models/user.rb'
 create_file 'app/models/user.rb' do
 <<-RUBY
 class User < ActiveRecord::Base
-  devise :database_authenticatable, :token_authenticatable, :recoverable, :rememberable, :trackable, :validatable, :confirmable
+  devise :database_authenticatable, :recoverable, :rememberable, :trackable, :validatable, :registerable
   default_scope :conditions => { :deleted_at => nil }
   validates_presence_of :name
   validates_uniqueness_of :name, :email, :case_sensitive => false, :scope => :deleted_at
@@ -75,10 +75,10 @@ create_file 'app/views/devise/menu/_login_items.html.haml' do
 <<-'FILE'
 - if user_signed_in?
   %li
-    = link_to('Logout', destroy_user_session_path)
+    = link_to('sign out', destroy_user_session_path)
 - else
   %li
-    = link_to('Login', new_user_session_path)
+    = link_to('sign in', new_user_session_path) or link_to('sign up', new_user_registration_path)
 %li
   User:
   - if current_user
@@ -97,15 +97,14 @@ end
 
 devise_migration = Dir['db/migrate/*_devise_create_users.rb'].first
 
-gsub_file devise_migration, /# t.confirmable/, 't.confirmable'
-gsub_file devise_migration, /# t.token_authenticatable/, 't.token_authenticatable'
-gsub_file devise_migration, /# add_index :users, :confirmation_token,   :unique => true/, 'add_index :users, :confirmation_token,   :unique => true'
+# gsub_file devise_migration, /# t.confirmable/, 't.confirmable'
+# gsub_file devise_migration, /# t.token_authenticatable/, 't.token_authenticatable'
+# gsub_file devise_migration, /# add_index :users, :confirmation_token,   :unique => true/, 'add_index :users, :confirmation_token,   :unique => true'
 
 append_file 'db/seeds.rb' do
 <<-FILE
 # Setup initial user so we can get in
 user = User.create! :name => "#{ENV['PROLOGUE_USER_NAME']}", :email => "#{ENV['PROLOGUE_USER_EMAIL']}", :password => "#{ENV['PROLOGUE_USER_PASSWORD']}", :password_confirmation => "#{ENV['PROLOGUE_USER_PASSWORD']}"
-user.confirmed_at = user.confirmation_sent_at
 user.save
 FILE
 end
