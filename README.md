@@ -28,6 +28,12 @@ Everything is configured and ready to rock your next Rails 3 project.  We hope i
 
     prologue new my_app --no-admin
 
+    prologue new my_app --no-confirmable
+
+    prologue new my_app --no-token_authenticatable
+
+    prologue new my_app --registerable
+
 
 ### Testing generated app
 

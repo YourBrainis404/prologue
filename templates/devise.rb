@@ -39,10 +39,15 @@ end
 run 'rails generate devise User'
 run 'rm app/models/user.rb'
 
+devise_modules = ":database_authenticatable, :recoverable, :rememberable, :trackable, :validatable"
+devise_modules += ", :confirmable" if ENV['PROLOGUE_CONFIRMABLE'] 
+devise_modules += ", :token_authenticatable" if ENV['PROLOGUE_TOKEN_AUTHENTICATABLE'] 
+devise_modules += ", :registerable" if ENV['PROLOGUE_REGISTERABLE'] 
+
 create_file 'app/models/user.rb' do
 <<-RUBY
 class User < ActiveRecord::Base
-  devise :database_authenticatable, :recoverable, :rememberable, :trackable, :validatable, :registerable
+  devise #{devise_modules}
   default_scope :conditions => { :deleted_at => nil }
   validates_presence_of :name
   validates_uniqueness_of :name, :email, :case_sensitive => false, :scope => :deleted_at
@@ -71,14 +76,17 @@ generate(:migration, "AddNameToUsers name:string")
 generate(:migration, "AddCachedSlugToUsers cached_slug:string")
 generate(:migration, "AddDeletedAtToUsers deleted_at:datetime")
 
+link_to_sign_up = ENV['PROLOGUE_REGISTERABLE'] ? "= link_to('sign up', new_user_registration_path)" : ""
+
 create_file 'app/views/devise/menu/_login_items.html.haml' do
-<<-'FILE'
+<<-"FILE"
 - if user_signed_in?
   %li
     = link_to('sign out', destroy_user_session_path)
 - else
   %li
-    = link_to('sign in', new_user_session_path) or link_to('sign up', new_user_registration_path)
+    = link_to('sign in', new_user_session_path)
+    #{link_to_sign_up}
 %li
   User:
   - if current_user
@@ -97,14 +105,19 @@ end
 
 devise_migration = Dir['db/migrate/*_devise_create_users.rb'].first
 
-# gsub_file devise_migration, /# t.confirmable/, 't.confirmable'
-# gsub_file devise_migration, /# t.token_authenticatable/, 't.token_authenticatable'
-# gsub_file devise_migration, /# add_index :users, :confirmation_token,   :unique => true/, 'add_index :users, :confirmation_token,   :unique => true'
+gsub_file devise_migration, /# t.token_authenticatable/, 't.token_authenticatable' if ENV['PROLOGUE_TOKEN_AUTHENTICATABLE']
+if ENV['PROLOGUE_CONFIRMABLE'] then
+  gsub_file devise_migration, /# t.confirmable/, 't.confirmable' 
+  gsub_file devise_migration, /# add_index :users, :confirmation_token,   :unique => true/, 'add_index :users, :confirmation_token,   :unique => true'
+end
+
+confirmed_at_seed = ENV['PROLOGUE_CONFIRMABLE'] ? "user.confirmed_at = user.confirmation_sent_at" : ""
 
 append_file 'db/seeds.rb' do
 <<-FILE
 # Setup initial user so we can get in
 user = User.create! :name => "#{ENV['PROLOGUE_USER_NAME']}", :email => "#{ENV['PROLOGUE_USER_EMAIL']}", :password => "#{ENV['PROLOGUE_USER_PASSWORD']}", :password_confirmation => "#{ENV['PROLOGUE_USER_PASSWORD']}"
+#{confirmed_at_seed}
 user.save
 FILE
 end
