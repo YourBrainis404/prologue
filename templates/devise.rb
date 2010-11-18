@@ -53,6 +53,7 @@ class User < ActiveRecord::Base
   validates_uniqueness_of :name, :email, :case_sensitive => false, :scope => :deleted_at
   attr_accessible :name, :email, :password, :password_confirmation, :remember_me
   has_friendly_id :name, :use_slug => true, :strip_non_ascii => true
+  before_validation(:default_values, :on => :create)
 
   def destroy
     self.update_attribute(:deleted_at, Time.now.utc)
@@ -66,6 +67,20 @@ class User < ActiveRecord::Base
     self.with_exclusive_scope :find => { :conditions => "deleted_at IS NOT NULL" } do
       all
     end
+  end
+
+  def default_values
+    self.name ||= ensure_unique_name( self.email.split( '@' )[0] ) if self.email
+  end
+  
+  def ensure_unique_name( s )
+    name = s
+    counter = 1
+    while (User.exists?(:name => name ) )
+      name = s + counter.to_s
+      counter += 1
+    end
+    name
   end
 
 end
